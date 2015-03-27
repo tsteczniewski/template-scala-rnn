@@ -45,13 +45,7 @@ class Algorithm(val ap: AlgorithmParams)
       val rnnSettings = new RNN.Settings(ap.inSize, data.labels.length)
       val rnn = new RNN(rnnSettings)
       val convertedTreesList = convertedTrees.toList
-      var lastError = 0.0
-      var error = rnn.error(convertedTreesList)
-      do {
-        rnn.fit(convertedTrees.toList)
-        lastError = error
-        error = rnn.error(convertedTreesList)
-      } while(error < lastError)
+      rnn.stochasticGradientDescent(convertedTreesList)
       (rnn.judge, rnn.combinator, 1.0)
     })
     val (judge, combinator, _) = judgesAndCombinators.reduce({
