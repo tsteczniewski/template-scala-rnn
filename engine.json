@@ -4,7 +4,8 @@
   "engineFactory": "org.template.vanilla.VanillaEngine",
   "sparkConf": {
     "org.deeplearning4j.scaleout.perform.models.word2vec": {
-      "negative": 0
+      "negative": 0,
+      "length": 10
     }
   },
   "datasource": {
@@ -14,15 +15,9 @@
   },
   "algorithms": [
     {
-      "name": "rntn",
+      "name": "rnn",
       "params": {
-        "activationFunction": "tanh",
-        "adagradResetFrequency": 1,
-        "combineClassification": true,
-        "randomFutureVectors": false,
-        "seed": 123,
-        "useTensors": false,
-        "numberOfNearestWords": 10
+        "inSize": 10
       }
     }
   ]
