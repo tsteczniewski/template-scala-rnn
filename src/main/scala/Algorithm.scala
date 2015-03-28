@@ -42,7 +42,7 @@ class Algorithm(val ap: AlgorithmParams)
     })
     val collectedConvertedTrees = convertedTrees.glom()
     val judgesAndCombinators = collectedConvertedTrees.map(convertedTrees => {
-      val rnnSettings = new RNN.Settings(ap.inSize, data.labels.length)
+      val rnnSettings = new RNN.Settings(ap.inSize)
       val rnn = new RNN(rnnSettings)
       val convertedTreesList = convertedTrees.toList
       rnn.stochasticGradientDescent(convertedTreesList)
@@ -70,10 +70,10 @@ class Algorithm(val ap: AlgorithmParams)
 
   def predict(model: Model, query: Query): PredictedResult = {
     val rawTrees = new TreeVectorizer().getTreesWithLabels(query.content, model.labels)
-    val rnnSettings = new RNN.Settings(ap.inSize, model.labels.length)
+    val rnnSettings = new RNN.Settings(ap.inSize)
     val rnn = new RNN(rnnSettings, model.combinator, model.judge)
     val convertedTrees = rawTrees.map(Tree.fromTreeVectorizer(_, model.vocabCache, model.weightLookupTable))
-    val sentiments = convertedTrees.map(rnn.predictClass(_))
+    val sentiments = convertedTrees.map(rnn.predict(_))
     PredictedResult(sentiments = sentiments.toList)
   }
 }
