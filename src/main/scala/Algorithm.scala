@@ -70,9 +70,9 @@ class Algorithm(val ap: AlgorithmParams)
 
   def predict(model: Model, query: Query): PredictedResult = {
     val rawTrees = new TreeVectorizer().getTreesWithLabels(query.content, model.labels)
+    val convertedTrees = rawTrees.map(Tree.fromTreeVectorizer(_, model.vocabCache, model.weightLookupTable))
     val rnnSettings = new RNN.Settings(ap.inSize, model.labels.length)
     val rnn = new RNN(rnnSettings, model.combinator, model.judge)
-    val convertedTrees = rawTrees.map(Tree.fromTreeVectorizer(_, model.vocabCache, model.weightLookupTable))
     val sentiments = convertedTrees.map(rnn.predictClass(_))
     PredictedResult(sentiments = sentiments.toList)
   }
