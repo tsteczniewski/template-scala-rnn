@@ -1,6 +1,6 @@
 # Template description.
 
-Goal of this template is implement RNN algorithm, as RNTN algorithm in deeplearning4j library does not work yet.
+Goal of this template is to implement RNN algorithm, as RNTN algorithm in deeplearning4j library does not work yet.
 
 Recursive Neural Network algorithm might be used in supervised learning algorithm used to predict sentiment of sentences.
 
@@ -110,7 +110,7 @@ val judgesAndCombinators = collectedConvertedTrees.map(convertedTrees => {
 })
 ```
 
-Average of all trained models is created, as in paper about [parallel stochastic gradient descent](http://www.research.rutgers.edu/~lihong/pub/Zinkevich11Parallelized.pdf).
+Mean value of all trained models is created, as in paper about [parallel stochastic gradient descent](http://www.research.rutgers.edu/~lihong/pub/Zinkevich11Parallelized.pdf).
 
 ```scala
 val (judge, combinator, _) = judgesAndCombinators.reduce({
