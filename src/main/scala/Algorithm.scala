@@ -27,6 +27,13 @@ class Algorithm(val ap: AlgorithmParams)
 
   @transient lazy val logger = Logger[this.type]
 
+  def weightedMean(a: INDArray, b: INDArray, aq: Int, bq: Int): INDArray = {
+    val a_aq = a.mul(aq)
+    val b_bq = a.mul(bq)
+    val sum = a_aq.add(b_bq)
+    sum.mul(1.0 / (aq + bq))
+  }
+
   def train(sc: SparkContext, data: PreparedData): Model = {
     val (vocabCache, weightLookupTable) = {
       val result = new SparkWord2Vec().train(data.phrases)
@@ -46,18 +53,13 @@ class Algorithm(val ap: AlgorithmParams)
       val rnn = new RNN(rnnSettings)
       val convertedTreesList = convertedTrees.toList
       rnn.stochasticGradientDescent(convertedTreesList)
-      (rnn.judge, rnn.combinator, 1.0)
+      (rnn.judge, rnn.combinator, 1)
     })
     val (judge, combinator, _) = judgesAndCombinators.reduce({
       case ((jl, cl, ql), (jr, cr, qr)) =>
-        val sum = ql + qr
-        val jlq = jl.mul(ql)
-        val jrq = jr.mul(qr)
-        val j = (jlq.add(jrq)).mul(1.0 / sum)
-        val clq = cl.mul(ql)
-        val crq = cr.mul(qr)
-        val c = (clq.add(crq)).mul(1.0 / sum)
-        (j, c, sum)
+        val j = weightedMean(jl, jr, ql, qr)
+        val c = weightedMean(cl, cr, ql, qr)
+        (j, c, ql + qr)
     })
     new Model(
       vocabCache = vocabCache,
@@ -73,7 +75,7 @@ class Algorithm(val ap: AlgorithmParams)
     val convertedTrees = rawTrees.map(Tree.fromTreeVectorizer(_, model.vocabCache, model.weightLookupTable))
     val rnnSettings = new RNN.Settings(ap.inSize, model.labels.length)
     val rnn = new RNN(rnnSettings, model.combinator, model.judge)
-    val sentiments = convertedTrees.map(rnn.predictClass(_))
+    val sentiments = convertedTrees.map(rnn.predictClass)
     PredictedResult(sentiments = sentiments.toList)
   }
 }
