@@ -25,7 +25,7 @@ chmod a+x setup.sh
 
 Copy this template to your local directory with:
 ```bash
-pio template get ts335793/template-scala-parallel-word2vec-rnn <TemplateName>
+pio template get ts335793/template-scala-spark-dl4j-word2vec-rnn <TemplateName>
 ```
 
 # Build, train, deploy.
