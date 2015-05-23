@@ -1,21 +1,25 @@
 package org.template.rnn
 
-import breeze.linalg.DenseMatrix
+import breeze.linalg.DenseVector
 
-abstract case class ForwardPropagatedTree(
-  value: DenseMatrix[Double],
-  derivative: DenseMatrix[Double]
+abstract class ForwardPropagatedTree(
+  val value: DenseVector[Double],
+  val derivative: DenseVector[Double]
 )
+
+object ForwardPropagatedTree {
+  def unapply(fpd: ForwardPropagatedTree) = Some((fpd.value, fpd.derivative))
+}
 
 case class ForwardPropagatedNode(
   left: ForwardPropagatedTree,
   right: ForwardPropagatedTree,
-  override val value: DenseMatrix[Double],
-  override val derivative: DenseMatrix[Double]
+  override val value: DenseVector[Double],
+  override val derivative: DenseVector[Double]
 ) extends ForwardPropagatedTree(value, derivative)
 
 case class ForwardPropagatedLeaf(
   word: String,
-  override val value: DenseMatrix[Double],
-  override val derivative: DenseMatrix[Double]
+  override val value: DenseVector[Double],
+  override val derivative: DenseVector[Double]
 ) extends ForwardPropagatedTree(value, derivative)
