@@ -5,15 +5,6 @@ import io.prediction.controller.Params
 
 import org.apache.spark.SparkContext
 
-import org.deeplearning4j.berkeley.Pair
-import org.deeplearning4j.models.embeddings.WeightLookupTable
-import org.deeplearning4j.models.rnn.RNN
-import org.deeplearning4j.models.rnn.Tree
-import org.deeplearning4j.models.word2vec.wordstore.VocabCache
-import org.deeplearning4j.spark.models.word2vec.{Word2Vec => SparkWord2Vec}
-import org.deeplearning4j.text.corpora.treeparser.TreeVectorizer
-import org.nd4j.linalg.api.ndarray.INDArray
-
 import scala.collection.JavaConversions._
 
 import grizzled.slf4j.Logger
@@ -27,15 +18,15 @@ class Algorithm(val ap: AlgorithmParams)
 
   @transient lazy val logger = Logger[this.type]
 
-  def weightedMean(a: INDArray, b: INDArray, aq: Int, bq: Int): INDArray = {
+  /*def weightedMean(a: INDArray, b: INDArray, aq: Int, bq: Int): INDArray = {
     val a_aq = a.mul(aq)
     val b_bq = a.mul(bq)
     val sum = a_aq.add(b_bq)
     sum.mul(1.0 / (aq + bq))
-  }
+  }*/
 
   def train(sc: SparkContext, data: PreparedData): Model = {
-    val (vocabCache, weightLookupTable) = {
+    /*val (vocabCache, weightLookupTable) = {
       val result = new SparkWord2Vec().train(data.phrases)
       (result.getFirst, result.getSecond)
     }
@@ -67,23 +58,20 @@ class Algorithm(val ap: AlgorithmParams)
       judge = judge,
       combinator = combinator,
       labels = data.labels
-    )
+    )*/
+    Model()
   }
 
   def predict(model: Model, query: Query): PredictedResult = {
-    val rawTrees = new TreeVectorizer().getTreesWithLabels(query.content, model.labels)
+    /*val rawTrees = new TreeVectorizer().getTreesWithLabels(query.content, model.labels)
     val convertedTrees = rawTrees.map(Tree.fromTreeVectorizer(_, model.vocabCache, model.weightLookupTable))
     val rnnSettings = new RNN.Settings(ap.inSize, model.labels.length)
     val rnn = new RNN(rnnSettings, model.combinator, model.judge)
     val sentiments = convertedTrees.map(rnn.predictClass)
-    PredictedResult(sentiments = sentiments.toList)
+    PredictedResult(sentiments = sentiments.toList)*/
+    PredictedResult(List.empty)
   }
 }
 
-class Model(
-  val vocabCache: VocabCache,
-  val weightLookupTable: WeightLookupTable,
-  val judge: INDArray,
-  val combinator: INDArray,
-  val labels: List[String]
+case class Model(
 ) extends Serializable
