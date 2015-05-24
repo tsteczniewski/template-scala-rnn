@@ -1,16 +1,20 @@
-package org.template.vanilla
+package org.template.rntn
 
 import io.prediction.controller.P2LAlgorithm
 import io.prediction.controller.Params
+import opennlp.tools.cmdline.parser.ParserTool
+import opennlp.tools.parser.{ParserFactory, ParserModel}
 
 import org.apache.spark.SparkContext
-
-import scala.collection.JavaConversions._
 
 import grizzled.slf4j.Logger
 
 case class AlgorithmParams(
-  val inSize: Integer
+  inSize: Int,
+  outSize: Int,
+  alpha: Double,
+  regularizationCoeff: Double,
+  steps: Int
 ) extends Params
 
 class Algorithm(val ap: AlgorithmParams)
@@ -18,60 +22,35 @@ class Algorithm(val ap: AlgorithmParams)
 
   @transient lazy val logger = Logger[this.type]
 
-  /*def weightedMean(a: INDArray, b: INDArray, aq: Int, bq: Int): INDArray = {
-    val a_aq = a.mul(aq)
-    val b_bq = a.mul(bq)
-    val sum = a_aq.add(b_bq)
-    sum.mul(1.0 / (aq + bq))
-  }*/
-
   def train(sc: SparkContext, data: PreparedData): Model = {
-    /*val (vocabCache, weightLookupTable) = {
-      val result = new SparkWord2Vec().train(data.phrases)
-      (result.getFirst, result.getSecond)
-    }
-    val rawTrees = data.labeledPhrases.mapPartitions(labeledPhrases => {
-      val treeVectorizer = new TreeVectorizer()
-      labeledPhrases.map(labeledPhrase => (treeVectorizer.getTreesWithLabels(labeledPhrase.phrase, data.labels), labeledPhrase.sentiment))
+    val collectedLabeledTrees = data.labeledTrees.glom()
+    val rntns = collectedLabeledTrees.map(labeledTrees => {
+      val rntn = new RNTN(ap.inSize, ap.outSize, ap.alpha, ap.regularizationCoeff)
+      val labeledTreesVector = labeledTrees.toVector
+      for(i <- 0 to ap.steps) rntn.fit(labeledTreesVector)
+      (rntn, 1)
     })
-    val convertedTrees = rawTrees.flatMap(rawTreesWithSentiment => {
-      val (rawTrees, sentiment) = rawTreesWithSentiment
-      rawTrees.map(rawTree => new Pair[Tree, Integer](Tree.fromTreeVectorizer(rawTree, vocabCache, weightLookupTable), sentiment))
-    })
-    val collectedConvertedTrees = convertedTrees.glom()
-    val judgesAndCombinators = collectedConvertedTrees.map(convertedTrees => {
-      val rnnSettings = new RNN.Settings(ap.inSize, data.labels.length)
-      val rnn = new RNN(rnnSettings)
-      val convertedTreesList = convertedTrees.toList
-      rnn.stochasticGradientDescent(convertedTreesList)
-      (rnn.judge, rnn.combinator, 1)
-    })
-    val (judge, combinator, _) = judgesAndCombinators.reduce({
-      case ((jl, cl, ql), (jr, cr, qr)) =>
-        val j = weightedMean(jl, jr, ql, qr)
-        val c = weightedMean(cl, cr, ql, qr)
-        (j, c, ql + qr)
-    })
-    new Model(
-      vocabCache = vocabCache,
-      weightLookupTable = weightLookupTable,
-      judge = judge,
-      combinator = combinator,
-      labels = data.labels
-    )*/
-    Model()
+    val (rntn, _) = rntns.reduce({case ((a, qa), (b, qb)) => (RNTN.weightedMean(a, b, qa, qb), qa + qb)})
+    Model(rntn)
   }
 
   def predict(model: Model, query: Query): PredictedResult = {
-    /*val rawTrees = new TreeVectorizer().getTreesWithLabels(query.content, model.labels)
-    val convertedTrees = rawTrees.map(Tree.fromTreeVectorizer(_, model.vocabCache, model.weightLookupTable))
-    val rnnSettings = new RNN.Settings(ap.inSize, model.labels.length)
-    val rnn = new RNN(rnnSettings, model.combinator, model.judge)
-    val sentiments = convertedTrees.map(rnn.predictClass)
-    PredictedResult(sentiments = sentiments.toList)*/
-    PredictedResult(List.empty)
+    val stream = getClass.getResource("/en-parser-chunking.bin").openStream()
+    val parserModel = new ParserModel(stream)
+    stream.close()
+    // create buffer
+    val buffer = new StringBuffer(20 * query.content.length)
+    // create parser
+    val parser = ParserFactory.create(parserModel)
+    ParserTool.parseLine(query.content, parser, 1)(0).show(buffer)
+    val pennTreeBankFormattedPhrase = buffer.toString
+    val tree = Tree.fromPennTreeBankFormat(pennTreeBankFormattedPhrase)
+    val forwardPropagatedTree = model.rntn.forwardPropagateTree(tree)
+    val judgement = model.rntn.forwardPropagateJudgment(forwardPropagatedTree)
+    PredictedResult(RNTN.maxClass(judgement))
   }
 }
 
 case class Model(
+  rntn: RNTN
 ) extends Serializable

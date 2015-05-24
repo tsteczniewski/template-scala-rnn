@@ -1,18 +1,18 @@
-package org.template.vanilla
+package org.template.rntn
 
 import io.prediction.controller.IEngineFactory
 import io.prediction.controller.Engine
 
 case class Query(content: String) extends Serializable
 
-case class PredictedResult(sentiments: List[Integer]) extends Serializable
+case class PredictedResult(sentiments: Int) extends Serializable
 
-object VanillaEngine extends IEngineFactory {
+object Engine extends IEngineFactory {
   def apply() = {
     new Engine(
       classOf[DataSource],
       classOf[Preparator],
-      Map("rnn" -> classOf[Algorithm]),
+      Map("rntn" -> classOf[Algorithm]),
       classOf[Serving])
   }
 }

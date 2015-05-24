@@ -1,8 +1,8 @@
-package org.template.rnn
+package org.template.rntn
 
 import scala.collection.mutable.Stack
 
-abstract class Tree(val label: String)
+abstract class Tree(val label: String) extends Serializable
 
 object Tree {
   def unapply(t: Tree) = Some((t.label))

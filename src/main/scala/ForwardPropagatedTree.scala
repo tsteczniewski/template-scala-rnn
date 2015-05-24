@@ -1,4 +1,4 @@
-package org.template.rnn
+package org.template.rntn
 
 import breeze.linalg.DenseVector
 
@@ -6,7 +6,7 @@ abstract class ForwardPropagatedTree(
   val label: String,
   val value: DenseVector[Double],
   val derivative: DenseVector[Double]
-)
+) extends Serializable
 
 object ForwardPropagatedTree {
   def unapply(fpd: ForwardPropagatedTree) = Some((fpd.label, fpd.value, fpd.derivative))

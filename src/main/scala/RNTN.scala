@@ -1,6 +1,6 @@
-package org.template.rnn
+package org.template.rntn
 
-import breeze.linalg.{sum, DenseVector, DenseMatrix}
+import breeze.linalg.{argmax, sum, DenseVector, DenseMatrix}
 import breeze.stats.distributions.Uniform
 import scala.collection.mutable.Map
 import scala.math.{exp, log}
@@ -16,14 +16,41 @@ object RNTN {
   def logDerivative(x: Double) = 1 / x
 
   def regularization(m: DenseMatrix[Double]) = sum(m.map(x => x * x))
+
+  def weightedMean(a: RNTN, b: RNTN, aq: Double, bq: Double): RNTN = {
+    assert(a.inSize == b.inSize && a.outSize == b.outSize && a.alpha == b.alpha && a.regularizationCoeff == b.regularizationCoeff)
+    val sum = aq + bq
+    val rntn = new RNTN(a.inSize, a.outSize, a.alpha, a.regularizationCoeff)
+    // judge
+    rntn.judge = ((aq * a.judge) + (bq * b.judge)) / sum
+    // combinator
+    if (true) {
+      val aKeySet = a.labelToCombinatorMap.keySet
+      val bKeySet = b.labelToCombinatorMap.keySet
+      for (key <- aKeySet.diff(bKeySet)) rntn.labelToCombinatorMap.put(key, (aq * a.labelToCombinatorMap(key)) / sum)
+      for (key <- bKeySet.diff(bKeySet)) rntn.labelToCombinatorMap.put(key, (bq * b.labelToCombinatorMap(key)) / sum)
+      for (key <- aKeySet.intersect(bKeySet)) rntn.labelToCombinatorMap.put(key, ((aq * a.labelToCombinatorMap(key)) + (bq * b.labelToCombinatorMap(key))) / sum)
+    }
+    // word vec
+    if (true) {
+      val aKeySet = a.wordToVecMap.keySet
+      val bKeySet = b.wordToVecMap.keySet
+      for (key <- aKeySet.diff(bKeySet)) rntn.wordToVecMap.put(key, (aq * a.wordToVecMap(key)) / sum)
+      for (key <- bKeySet.diff(bKeySet)) rntn.wordToVecMap.put(key, (bq * b.wordToVecMap(key)) / sum)
+      for (key <- aKeySet.intersect(bKeySet)) rntn.wordToVecMap.put(key, (aq * a.wordToVecMap(key) + bq * b.wordToVecMap(key)) / sum)
+    }
+    rntn
+  }
+
+  def maxClass(v: DenseVector[Double]): Int = argmax(v)
 }
 
-case class RNTN(
+case class RNTN (
   inSize: Int,
   outSize: Int,
   alpha: Double,
   regularizationCoeff: Double
-) {
+) extends Serializable {
   var judge = RNTN.randomMatrix(outSize, inSize + 1)
   var labelToCombinatorMap = Map[(String, Int), DenseMatrix[Double]]()
   var wordToVecMap = Map[(String, String), DenseVector[Double]]()

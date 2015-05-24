@@ -1,4 +1,4 @@
-package org.template.vanilla
+package org.template.rntn
 
 import io.prediction.controller._
 import io.prediction.data.store.PEventStore
@@ -33,20 +33,20 @@ class DataSource(val dsp: DataSourceParams)
         )
     })
 
-    new TrainingData(eventsRDD)
+    TrainingData(eventsRDD)
   }
 }
 
 case class LabeledPhrase(
-                          phraseId: Int,
-                          sentenceId: Int,
-                          phrase: String,
-                          sentiment: Int
-                          )
+  phraseId: Int,
+  sentenceId: Int,
+  phrase: String,
+  sentiment: Int
+)
 
-class TrainingData(
-                    val labeledPhrases: RDD[LabeledPhrase]
-                    ) extends Serializable with SanityCheck {
+case class TrainingData(
+  labeledPhrases: RDD[LabeledPhrase]
+) extends Serializable with SanityCheck {
   override def toString = {
     s"events: [${labeledPhrases.count()}] (${labeledPhrases.take(2).toList}...)"
   }

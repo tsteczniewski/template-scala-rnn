@@ -1,4 +1,4 @@
-package org.template.vanilla
+package org.template.rntn
 
 import io.prediction.controller.LServing
 

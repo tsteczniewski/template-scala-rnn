@@ -1,4 +1,4 @@
-package org.template.rnn
+package org.template.rntn
 
 import breeze.linalg.{DenseVector, DenseMatrix}
 
@@ -22,6 +22,8 @@ class RNNTest extends org.scalatest.FunSuite {
       Node(List(Node(List(Leaf("I","PRP")),"NP-SBJ"), Node(List(Leaf("say","VBP"),
         Node(List(Leaf("1992","CD")),"NP")),"VP"), Leaf(".","."), Leaf("''","''")),"S")),"TOP")
     assert(a2 == e2)
+    val a3 = "(INC (VBZ is) (ADVP (RB also)) (JJ good) (IN for) (NP (DT the) (NN gander)) (, ,) (NP (DT some)) (IN of) (WHNP (WDT which)) (ADVP (RB occasionally)) (VBZ amuses) (CC but) (NP (NN none)) (IN of) (WHNP (WDT which)) (VBZ amounts) (TO to) (NP (JJ much)) (IN of) (NP (DT a) (NN story)))"
+    //println(Tree.fromPennTreeBankFormat(a3))
   }
 
   test("test sigmoid") {
