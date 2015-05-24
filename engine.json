@@ -2,19 +2,12 @@
   "id": "default",
   "description": "Default settings",
   "engineFactory": "org.template.vanilla.VanillaEngine",
-  "sparkConf": {
-    "org.deeplearning4j.scaleout.perform.models.word2vec": {
-      "negative": 0,
-      "length": 10
-    }
-  },
   "datasource": {
     "params" : {
-      "appId": 1
+      "appName": "D30"
     }
   },
-  "algorithms": [
-    {
+  "algorithms": [{
       "name": "rnn",
       "params": {
         "inSize": 10
