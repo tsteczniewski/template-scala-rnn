@@ -43,6 +43,10 @@ object RNTN {
   }
 
   def maxClass(v: DenseVector[Double]): Int = argmax(v)
+
+  def removeNans(m: DenseMatrix[Double]): DenseMatrix[Double] = m.map(x => if (x.isNaN) 0 else x)
+
+  def removeNans(v: DenseVector[Double]): DenseVector[Double] = v.map(x => if (x.isNaN) 0 else x)
 }
 
 case class RNTN (
@@ -163,8 +167,8 @@ case class RNTN (
     clearCache()
     for((t, i) <- labeledTrees) backwardPropagateError(forwardPropagateTree(t), label(i))
     backwardPropagateRegularizationError()
-    judge -= alpha * judgeDerivative
-    for((key, combinator) <- labelToCombinatorMap) combinator -= alpha * labelToCombinatorDerivativeMap.get(key).get
-    for((word, vec) <- wordToVecMap) vec -= alpha * wordToVecDerivativeMap.get(word).get
+    judge -= RNTN.removeNans(alpha * judgeDerivative)
+    for((key, combinator) <- labelToCombinatorMap) combinator -= RNTN.removeNans(alpha * labelToCombinatorDerivativeMap.get(key).get)
+    for((word, vec) <- wordToVecMap) vec -= RNTN.removeNans(alpha * wordToVecDerivativeMap.get(word).get)
   }
 }
