@@ -11,6 +11,19 @@ class RNNTest extends org.scalatest.FunSuite {
     (x - eps <= y && y <= x + eps) || (1.0 - eps <= x / y && x / y <= 1.0 + eps)
   }
 
+  test("test from penn bank tree") {
+    val a1 = Tree.fromPennTreeBankFormat("(TOP (S (NP-SBJ (DT Some) )(VP (VBP say) (NP (NNP November) ))(. .) ))")
+    val e1 = Node(List(
+      Node(List(Node(List(Leaf("Some","DT")),"NP-SBJ"), Node(List(Leaf("say","VBP"),
+      Node(List(Leaf("November","NNP")),"NP")),"VP"), Leaf(".",".")),"S")),"TOP")
+    assert(a1 == e1)
+    val a2 = Tree.fromPennTreeBankFormat("(TOP (S (NP-SBJ (PRP I) )(VP (VBP say) (NP (CD 1992) ))(. .) ('' '') ))")
+    val e2 = Node(List(
+      Node(List(Node(List(Leaf("I","PRP")),"NP-SBJ"), Node(List(Leaf("say","VBP"),
+        Node(List(Leaf("1992","CD")),"NP")),"VP"), Leaf(".","."), Leaf("''","''")),"S")),"TOP")
+    assert(a2 == e2)
+  }
+
   test("test sigmoid") {
     val xs = List(-1.0, 0.0, 1.0, 2.0, 3.0)
 
