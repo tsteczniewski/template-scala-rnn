@@ -4,6 +4,8 @@ import breeze.linalg.{DenseVector, DenseMatrix}
 
 class RNNTest extends org.scalatest.FunSuite {
 
+  val infinity = 100000000.0
+
   def equal(x: Double, y: Double): Boolean = {
     val eps = 0.000001
     (x - eps <= y && y <= x + eps) || (1.0 - eps <= x / y && x / y <= 1.0 + eps)
@@ -15,7 +17,7 @@ class RNNTest extends org.scalatest.FunSuite {
     // 1 / (1 + e^(-x)) for x in -1, 0, 1, 2, 3
     val sigmoidsOfXs = List(0.268941, 0.5, 0.731059, 0.880797, 0.952574)
     for((x, sigmoidOfX) <- xs.zip(sigmoidsOfXs)) {
-      assert(equal(RNN.sigmoid(x), sigmoidOfX))
+      assert(equal(RNTN.sigmoid(x), sigmoidOfX))
     }
   }
 
@@ -25,7 +27,7 @@ class RNNTest extends org.scalatest.FunSuite {
     // differentiate 1 / (1 + e^(-x)) wrt x for x in -1, 0, 1, 2, 3
     val sigmoidDerivativesOfXs = List(0.196612, 0.25, 0.196612, 0.104994, 0.0451767)
     for((x, sigmoidDerivativeOfX) <- xs.zip(sigmoidDerivativesOfXs)) {
-      assert(equal(RNN.sigmoidDerivative(x), sigmoidDerivativeOfX))
+      assert(equal(RNTN.sigmoidDerivative(x), sigmoidDerivativeOfX))
     }
   }
 
@@ -58,26 +60,26 @@ class RNNTest extends org.scalatest.FunSuite {
     // der e = der(sigmoid)(c * sigmoid(a) + d * sigmoid(b) + e * 1.0)
 
     val a_der = for (i <- a.indices)
-      yield c(i) * RNN.sigmoidDerivative(a(i)) * RNN.sigmoidDerivative(c(i) * RNN.sigmoid(a(i)) + d(i) * RNN.sigmoid(b(i)) + e(i) * 1.0)
+      yield c(i) * RNTN.sigmoidDerivative(a(i)) * RNTN.sigmoidDerivative(c(i) * RNTN.sigmoid(a(i)) + d(i) * RNTN.sigmoid(b(i)) + e(i) * 1.0)
     val b_der = for (i <- a.indices)
-      yield d(i) * RNN.sigmoidDerivative(b(i)) * RNN.sigmoidDerivative(c(i) * RNN.sigmoid(a(i)) + d(i) * RNN.sigmoid(b(i)) + e(i) * 1.0)
+      yield d(i) * RNTN.sigmoidDerivative(b(i)) * RNTN.sigmoidDerivative(c(i) * RNTN.sigmoid(a(i)) + d(i) * RNTN.sigmoid(b(i)) + e(i) * 1.0)
     val c_der = for (i <- a.indices)
-      yield RNN.sigmoid(a(i)) * RNN.sigmoidDerivative(c(i) * RNN.sigmoid(a(i)) + d(i) * RNN.sigmoid(b(i)) + e(i) * 1.0)
+      yield RNTN.sigmoid(a(i)) * RNTN.sigmoidDerivative(c(i) * RNTN.sigmoid(a(i)) + d(i) * RNTN.sigmoid(b(i)) + e(i) * 1.0)
     val d_der = for (i <- a.indices)
-      yield RNN.sigmoid(b(i)) * RNN.sigmoidDerivative(c(i) * RNN.sigmoid(a(i)) + d(i) * RNN.sigmoid(b(i)) + e(i) * 1.0)
+      yield RNTN.sigmoid(b(i)) * RNTN.sigmoidDerivative(c(i) * RNTN.sigmoid(a(i)) + d(i) * RNTN.sigmoid(b(i)) + e(i) * 1.0)
     val e_der = for (i <- a.indices)
-      yield RNN.sigmoidDerivative(c(i) * RNN.sigmoid(a(i)) + d(i) * RNN.sigmoid(b(i)) + e(i) * 1.0)
+      yield RNTN.sigmoidDerivative(c(i) * RNTN.sigmoid(a(i)) + d(i) * RNTN.sigmoid(b(i)) + e(i) * 1.0)
 
     for (i <- a.indices) {
       //println(s"test fold $i")
-      val rnn = RNN(1, 0, 0, 0)
+      val rnn = RNTN(1, 0, 0, 0)
       rnn.clearCache()
-      rnn.combinator = DenseMatrix((combinator_1(i), combinator_2(i), combinator_3(i)))
-      val l = Leaf("l")
-      val r = Leaf("r")
-      val t = Node(l, r)
-      rnn.wordToVecMap.put("l", DenseVector(ls(i)))
-      rnn.wordToVecMap.put("r", DenseVector(rs(i)))
+      rnn.labelToCombinatorMap.put(("LABEL", 2), DenseMatrix((combinator_1(i), combinator_2(i), combinator_3(i))))
+      val l = Leaf("l", "LABEL")
+      val r = Leaf("r", "LABEL")
+      val t = Node(List(l, r), "LABEL")
+      rnn.wordToVecMap.put(("l", "LABEL"), DenseVector(ls(i)))
+      rnn.wordToVecMap.put(("r", "LABEL"), DenseVector(rs(i)))
       val fpt = rnn.forwardPropagateTree(t)
       rnn.backwardPropagateTree(fpt, DenseVector.ones(1))
       //println(s"${rnn.wordToVecDerivativeMap.get("l").get(0)} ${a_der(i)} ${rnn.wordToVecDerivativeMap.get("l").get(0) / a_der(i)}")
@@ -85,11 +87,11 @@ class RNNTest extends org.scalatest.FunSuite {
       //println(s"${rnn.combinatorDerivative(0, 0)} ${c_der(i)} ${rnn.combinatorDerivative(0, 0) / c_der(i)}")
       //println(s"${rnn.combinatorDerivative(0, 1)} ${d_der(i)} ${rnn.combinatorDerivative(0, 1) / d_der(i)}")
       //println(s"${rnn.combinatorDerivative(0, 2)} ${e_der(i)} ${rnn.combinatorDerivative(0, 2) / e_der(i)}")
-      assert(equal(rnn.wordToVecDerivativeMap.get("l").get(0), a_der(i)))
-      assert(equal(rnn.wordToVecDerivativeMap.get("r").get(0), b_der(i)))
-      assert(equal(rnn.combinatorDerivative(0, 0), c_der(i)))
-      assert(equal(rnn.combinatorDerivative(0, 1), d_der(i)))
-      assert(equal(rnn.combinatorDerivative(0, 2), e_der(i)))
+      assert(equal(rnn.wordToVecDerivativeMap.get(("l", "LABEL")).get(0), a_der(i)))
+      assert(equal(rnn.wordToVecDerivativeMap.get(("r", "LABEL")).get(0), b_der(i)))
+      assert(equal(rnn.labelToCombinatorDerivativeMap.get(("LABEL", 2)).get(0, 0), c_der(i)))
+      assert(equal(rnn.labelToCombinatorDerivativeMap.get(("LABEL", 2)).get(0, 1), d_der(i)))
+      assert(equal(rnn.labelToCombinatorDerivativeMap.get(("LABEL", 2)).get(0, 2), e_der(i)))
     }
   }
 
@@ -120,65 +122,109 @@ class RNNTest extends org.scalatest.FunSuite {
     // (d)/(da)(log(1-f(b f(a)+c))) = (b f'(a) f'(b f(a)+c))/(f(b f(a)+c)-1)
 
     val der_a = for (i <- a.indices)
-      yield (-g(i) * (b(i) * RNN.sigmoidDerivative(a(i)) * RNN.sigmoidDerivative(c(i) + b(i) * RNN.sigmoid(a(i)))) / RNN.sigmoid(c(i) + b(i) * RNN.sigmoid(a(i)))
-             - (1.0 - g(i)) * (b(i) * RNN.sigmoidDerivative(a(i)) * RNN.sigmoidDerivative(b(i) * RNN.sigmoid(a(i)) + c(i))) / (RNN.sigmoid(b(i) * RNN.sigmoid(a(i)) + c(i)) - 1.0)
-             - h(i) * (d(i) * RNN.sigmoidDerivative(a(i)) * RNN.sigmoidDerivative(e(i) + d(i) * RNN.sigmoid(a(i)))) / RNN.sigmoid(e(i) + d(i) * RNN.sigmoid(a(i)))
-             - (1.0 - h(i)) * (d(i) * RNN.sigmoidDerivative(a(i)) * RNN.sigmoidDerivative(d(i) * RNN.sigmoid(a(i)) + e(i))) / (RNN.sigmoid(d(i) * RNN.sigmoid(a(i)) + e(i)) - 1.0))
+      yield (-g(i) * (b(i) * RNTN.sigmoidDerivative(a(i)) * RNTN.sigmoidDerivative(c(i) + b(i) * RNTN.sigmoid(a(i)))) / RNTN.sigmoid(c(i) + b(i) * RNTN.sigmoid(a(i)))
+             - (1.0 - g(i)) * (b(i) * RNTN.sigmoidDerivative(a(i)) * RNTN.sigmoidDerivative(b(i) * RNTN.sigmoid(a(i)) + c(i))) / (RNTN.sigmoid(b(i) * RNTN.sigmoid(a(i)) + c(i)) - 1.0)
+             - h(i) * (d(i) * RNTN.sigmoidDerivative(a(i)) * RNTN.sigmoidDerivative(e(i) + d(i) * RNTN.sigmoid(a(i)))) / RNTN.sigmoid(e(i) + d(i) * RNTN.sigmoid(a(i)))
+             - (1.0 - h(i)) * (d(i) * RNTN.sigmoidDerivative(a(i)) * RNTN.sigmoidDerivative(d(i) * RNTN.sigmoid(a(i)) + e(i))) / (RNTN.sigmoid(d(i) * RNTN.sigmoid(a(i)) + e(i)) - 1.0))
     val der_b = for (i <- a.indices)
-      yield (-g(i) * (RNN.sigmoid(a(i)) * RNN.sigmoidDerivative(b(i) * RNN.sigmoid(a(i)) + c(i))) / (RNN.sigmoid(b(i) * RNN.sigmoid(a(i)) + c(i)))
-             - (1.0 - g(i)) * (RNN.sigmoid(a(i)) * RNN.sigmoidDerivative(b(i) * RNN.sigmoid(a(i)) + c(i))) / (RNN.sigmoid(b(i) * RNN.sigmoid(a(i)) + c(i)) - 1.0))
+      yield (-g(i) * (RNTN.sigmoid(a(i)) * RNTN.sigmoidDerivative(b(i) * RNTN.sigmoid(a(i)) + c(i))) / (RNTN.sigmoid(b(i) * RNTN.sigmoid(a(i)) + c(i)))
+             - (1.0 - g(i)) * (RNTN.sigmoid(a(i)) * RNTN.sigmoidDerivative(b(i) * RNTN.sigmoid(a(i)) + c(i))) / (RNTN.sigmoid(b(i) * RNTN.sigmoid(a(i)) + c(i)) - 1.0))
     val der_c = for (i <- a.indices)
-      yield (-g(i) * (RNN.sigmoidDerivative(b(i) * RNN.sigmoid(a(i)) + c(i))) / (RNN.sigmoid(b(i) * RNN.sigmoid(a(i)) + c(i)))
-             - (1.0 - g(i)) * (RNN.sigmoidDerivative(b(i) * RNN.sigmoid(a(i)) + c(i))) / (RNN.sigmoid(b(i) * RNN.sigmoid(a(i)) + c(i)) - 1))
+      yield (-g(i) * (RNTN.sigmoidDerivative(b(i) * RNTN.sigmoid(a(i)) + c(i))) / (RNTN.sigmoid(b(i) * RNTN.sigmoid(a(i)) + c(i)))
+             - (1.0 - g(i)) * (RNTN.sigmoidDerivative(b(i) * RNTN.sigmoid(a(i)) + c(i))) / (RNTN.sigmoid(b(i) * RNTN.sigmoid(a(i)) + c(i)) - 1))
 
     for(i <- a.indices) {
-      val rnn = RNN(1, 2, 0, 0)
+      val rnn = RNTN(1, 2, 0, 0)
       rnn.clearCache()
       rnn.judge = DenseMatrix((judge_1(i), judge_2(i)), (judge_3(i), judge_4(i)))
-      val l = Leaf("l")
-      rnn.wordToVecMap.put("l", DenseVector(ls(i)))
+      val l = Leaf("l", "LABEL")
+      rnn.wordToVecMap.put(("l", "LABEL"), DenseVector(ls(i)))
       val fpt = rnn.forwardPropagateTree(l)
       rnn.backwardPropagateError(fpt, DenseVector(expected_1(i), expected_2(i)))
       // println(s"${rnn.wordToVecDerivativeMap.get("l").get(0)} ${der_a(i)} ${rnn.wordToVecDerivativeMap.get("l").get(0) / der_a(i)}")
       // println(s"${rnn.judgeDerivative(0, 0)} ${der_b(i)} ${rnn.judgeDerivative(0, 0) / der_b(i)}")
       // println(s"${rnn.judgeDerivative(0, 0)} ${der_c(i)} ${rnn.judgeDerivative(0, 0) / der_c(i)}")
-      assert(equal(rnn.wordToVecDerivativeMap.get("l").get(0), der_a(i)))
+      assert(equal(rnn.wordToVecDerivativeMap.get(("l", "LABEL")).get(0), der_a(i)))
       assert(equal(rnn.judgeDerivative(0, 0), der_b(i)))
       assert(equal(rnn.judgeDerivative(0, 1), der_c(i)))
     }
   }
 
   test("test fit A") {
-    println("test fit A")
+    //println("test fit A")
 
-    val rnn = RNN(10, 3, 1, 0.001)
-    val l = Leaf("word")
+    val rnn = RNTN(10, 3, 1, 0.001)
+    val l = Leaf("word", "LABEL")
     val ps = Vector((l, 0))
+    var previousError = infinity
     for(i <- 0 to 10)
     {
       rnn.fit(ps)
-      println(rnn.forwardPropagateJudgment(rnn.forwardPropagateTree(l)))
-      println(rnn.forwardPropagateError(ps))
+      //println(rnn.forwardPropagateJudgment(rnn.forwardPropagateTree(l)))
+      //println(rnn.forwardPropagateError(ps))
+      val currentError = rnn.forwardPropagateError(ps)
+      assert(currentError < previousError)
+      previousError = currentError
     }
+    assert(rnn.labelToCombinatorMap.size == 0)
+    assert(rnn.labelToCombinatorDerivativeMap.size == 0)
+    assert(rnn.wordToVecMap.size == 1)
+    assert(rnn.wordToVecDerivativeMap.size == 1)
   }
 
   test("test fit B") {
-    println("test fit B")
+    //println("test fit B")
 
-    val rnn = RNN(10, 3, 1, 0.001)
-    val l = Leaf("word")
-    val r = Leaf("other")
-    val t2 = Node(Leaf("a"), Leaf("b"))
-    val t1 = Node(t2, Leaf("a"))
+    val rnn = RNTN(10, 3, 1, 0.001)
+    val l = Leaf("word", "LABEL")
+    val r = Leaf("other", "BABEL")
+    val t2 = Node(List(Leaf("a", "GABEL"), Leaf("b", "REBEL")), "LABEL")
+    val t1 = Node(List(t2, Leaf("a", "GABEL")), "LABEL")
     val ps = Vector((l, 0), (r, 1), (t1, 2))
+    var previousError = infinity
     for(i <- 0 to 20)
     {
       rnn.fit(ps)
-      println(s"l ${rnn.forwardPropagateJudgment(rnn.forwardPropagateTree(l))}")
-      println(s"r ${rnn.forwardPropagateJudgment(rnn.forwardPropagateTree(r))}")
-      println(s"t1 ${rnn.forwardPropagateJudgment(rnn.forwardPropagateTree(t1))}")
-      println(rnn.forwardPropagateError(ps))
+      //println(s"l ${rnn.forwardPropagateJudgment(rnn.forwardPropagateTree(l))}")
+      //println(s"r ${rnn.forwardPropagateJudgment(rnn.forwardPropagateTree(r))}")
+      //println(s"t1 ${rnn.forwardPropagateJudgment(rnn.forwardPropagateTree(t1))}")
+      //println(rnn.forwardPropagateError(ps))
+      val currentError = rnn.forwardPropagateError(ps)
+      assert(currentError < previousError)
+      previousError = currentError
     }
+    assert(rnn.labelToCombinatorMap.contains(("LABEL", 2)))
+    assert(rnn.labelToCombinatorDerivativeMap.contains(("LABEL", 2)))
+    assert(rnn.labelToCombinatorMap.size == 1)
+    assert(rnn.labelToCombinatorDerivativeMap.size == 1)
   }
 
+  test("test fit C") {
+    //println("test fit C")
+
+    val rnn = RNTN(10, 3, 1, 0.001)
+    val l = Leaf("word", "LABEL")
+    val r = Leaf("other", "BABEL")
+    val t2 = Node(List(Leaf("a", "GABEL"), Leaf("b", "REBEL")), "LABEL")
+    val t1 = Node(List(t2, Leaf("a", "GABEL")), "BABEL")
+    val t3 = Node(List(Leaf("a", "STH"), Leaf("b", "STH"), Leaf("c", "STH")), "LABEL")
+    val ps = Vector((l, 0), (r, 1), (t1, 2), (t3, 0))
+    var previousError = infinity
+    for(i <- 0 to 20)
+    {
+      rnn.fit(ps)
+      //println(s"l ${rnn.forwardPropagateJudgment(rnn.forwardPropagateTree(l))}")
+      //println(s"r ${rnn.forwardPropagateJudgment(rnn.forwardPropagateTree(r))}")
+      //println(s"t1 ${rnn.forwardPropagateJudgment(rnn.forwardPropagateTree(t1))}")
+      //println(rnn.forwardPropagateError(ps))
+      val currentError = rnn.forwardPropagateError(ps)
+      assert(currentError < previousError)
+      previousError = currentError
+    }
+    assert(rnn.labelToCombinatorMap.contains(("LABEL", 2)))
+    assert(rnn.labelToCombinatorMap.contains(("LABEL", 3)))
+    assert(rnn.labelToCombinatorMap.contains(("BABEL", 2)))
+    assert(rnn.labelToCombinatorMap.size == 3)
+    assert(rnn.labelToCombinatorDerivativeMap.size == 3)
+  }
 }
