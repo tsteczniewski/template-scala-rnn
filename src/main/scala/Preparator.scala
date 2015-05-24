@@ -15,25 +15,25 @@ class Preparator
   val lengthCoeff = 20
 
   def prepare(sc: SparkContext, trainingData: TrainingData): PreparedData = {
-    val labeledTrees = trainingData.labeledPhrases.mapPartitions(labeledPhrases => {
-      // get model
-      val stream = getClass.getResource("/en-parser-chunking.bin").openStream()
-      val parserModel = new ParserModel(stream)
-      stream.close()
-      // create buffer
-      val maxLength = labeledPhrases.maxBy(_.phrase.length).phrase.length
-      val buffer = new StringBuffer(1000)
-      // create parser
-      val parser = ParserFactory.create(parserModel)
-      labeledPhrases.map(labeledPhrase => {
-        ParserTool.parseLine(labeledPhrase.phrase, parser, 1)(0).show(buffer)
-        val pennTreeBankFormattedPhrase = buffer.toString
-        buffer.delete(0,  buffer.length())
-        (Tree.fromPennTreeBankFormat(pennTreeBankFormattedPhrase), labeledPhrase.sentiment)
-      })
+    // collect
+    val labeledPhrases = trainingData.labeledPhrases.collect
+    // buffer
+    val maxLength = labeledPhrases.maxBy(_.phrase.length).phrase.length
+    val buffer = new StringBuffer(lengthCoeff * maxLength)
+    // get parser
+    val stream = getClass.getResource("/en-parser-chunking.bin").openStream()
+    val parserModel = new ParserModel(stream)
+    stream.close()
+    val parser = ParserFactory.create(parserModel)
+    val labeledTrees = labeledPhrases.map(labeledPhrase => {
+      ParserTool.parseLine(labeledPhrase.phrase, parser, 1)(0).show(buffer)
+      val pennTreeBankFormattedPhrase = buffer.toString
+      buffer.delete(0,  buffer.length())
+      val tree = Tree.fromPennTreeBankFormat(pennTreeBankFormattedPhrase)
+      (tree, labeledPhrase.sentiment)
     })
 
-    PreparedData(labeledTrees)
+    PreparedData(sc.parallelize(labeledTrees))
   }
 }
 

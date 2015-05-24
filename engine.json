@@ -10,11 +10,11 @@
   "algorithms": [{
       "name": "rntn",
       "params": {
-        "inSize": 10,
+        "inSize": 20,
         "outSize": 5,
         "alpha": 1.0,
         "regularizationCoeff": 0.001,
-        "steps": 5
+        "steps": 300
       }
     }
   ]

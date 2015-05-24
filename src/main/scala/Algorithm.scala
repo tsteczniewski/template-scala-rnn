@@ -23,12 +23,14 @@ class Algorithm(val ap: AlgorithmParams)
   @transient lazy val logger = Logger[this.type]
 
   def train(sc: SparkContext, data: PreparedData): Model = {
-    val collectedLabeledTrees = data.labeledTrees.glom()
-    val rntns = collectedLabeledTrees.map(labeledTrees => {
+    val rntns = data.labeledTrees.mapPartitions(labeledTrees => {
       val rntn = new RNTN(ap.inSize, ap.outSize, ap.alpha, ap.regularizationCoeff)
       val labeledTreesVector = labeledTrees.toVector
-      for(i <- 0 to ap.steps) rntn.fit(labeledTreesVector)
-      (rntn, 1)
+      for(i <- 0 to ap.steps) {
+        logger.info(s"Iteration $i: ${rntn.forwardPropagateError(labeledTreesVector)}")
+        rntn.fit(labeledTreesVector)
+      }
+      Iterator((rntn, 1))
     })
     val (rntn, _) = rntns.reduce({case ((a, qa), (b, qb)) => (RNTN.weightedMean(a, b, qa, qb), qa + qb)})
     Model(rntn)

@@ -33,7 +33,7 @@ class DataSource(val dsp: DataSourceParams)
         )
     })
 
-    TrainingData(eventsRDD)
+    new TrainingData(eventsRDD)
   }
 }
 
@@ -44,8 +44,8 @@ case class LabeledPhrase(
   sentiment: Int
 )
 
-case class TrainingData(
-  labeledPhrases: RDD[LabeledPhrase]
+class TrainingData(
+  val labeledPhrases: RDD[LabeledPhrase]
 ) extends Serializable with SanityCheck {
   override def toString = {
     s"events: [${labeledPhrases.count()}] (${labeledPhrases.take(2).toList}...)"
