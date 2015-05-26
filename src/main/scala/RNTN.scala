@@ -164,44 +164,55 @@ case class RNTN (
       acc + forwardPropagateError(forwardPropagateTree(t), label(i))
     })
 
-  def forwardPropagateRegularizationError(): Double = {
+  def forwardPropagateRegularizationError(influence: Double): Double = {
     var regularization = RNTN.regularization(judge)
     for(combinator <- labelToCombinatorMap.values) regularization += RNTN.regularization(combinator)
     for(vec <- wordToVecMap.values) regularization += RNTN.regularization(vec.asDenseMatrix)
-    regularizationCoeff * regularization
+    regularizationCoeff * influence * regularization
   }
 
-  def backwardPropagateRegularizationError(): Unit = {
-    val coeff = regularizationCoeff * 2.0
+  // calculates gradient only on touched matrices
+  def backwardPropagateRegularizationError(influence: Double): Unit = {
+    val coeff = regularizationCoeff * influence * 2.0
     judgeDerivative += coeff * judge
-    for((key, combinator) <- labelToCombinatorMap) labelToCombinatorDerivativeMap.get(key).get += coeff * combinator
-    for((word, vec) <- wordToVecMap) wordToVecDerivativeMap.get(word).get += coeff * vec
+    for((key, combinatorDerivative) <- labelToCombinatorDerivativeMap) combinatorDerivative += coeff * labelToCombinatorMap.get(key).get
+    for((key, vecDerivative) <- wordToVecDerivativeMap) vecDerivative += coeff * wordToVecMap.get(key).get
   }
 
   def applyGradientWithoutAdaGrad() = {
     judge -= RNTN.removeNans(alpha * judgeDerivative)
-    for((key, combinator) <- labelToCombinatorMap) combinator -= RNTN.removeNans(alpha * labelToCombinatorDerivativeMap.get(key).get)
-    for((key, vec) <- wordToVecMap) vec -= RNTN.removeNans(alpha * wordToVecDerivativeMap.get(key).get)
+    for((key, combinatorDerivative) <- labelToCombinatorDerivativeMap) labelToCombinatorMap.get(key).get -= RNTN.removeNans(alpha * combinatorDerivative)
+    for((key, vecDerivative) <- wordToVecDerivativeMap) wordToVecMap.get(key).get -= RNTN.removeNans(alpha * vecDerivative)
   }
 
   def applyGradientWithAdaGrad() = {
     judge -= RNTN.removeNans(alpha * RNTN.adaGrad(judgeDerivative, judgeDerivativeHistory))
-    for((key, combinator) <- labelToCombinatorMap) {
-      val derivativeHistory = labelToCombinatorDerivativeHistoryMap.getOrElseUpdate(key, DenseMatrix.zeros(combinator.rows, combinator.cols))
-      combinator -= RNTN.removeNans(alpha * RNTN.adaGrad(labelToCombinatorDerivativeMap.get(key).get, derivativeHistory))
+    for((key, combinatorDerivative) <- labelToCombinatorDerivativeMap) {
+      val derivativeHistory = labelToCombinatorDerivativeHistoryMap.getOrElseUpdate(key, DenseMatrix.zeros(combinatorDerivative.rows, combinatorDerivative.cols))
+      labelToCombinatorMap.get(key).get -= RNTN.removeNans(alpha * RNTN.adaGrad(combinatorDerivative, derivativeHistory))
     }
 
-    for((key, vec) <- wordToVecMap) {
-      val derivativeHistory = wordToVecDerivativeMap.getOrElseUpdate(key, DenseVector.zeros(inSize))
-      vec -= RNTN.removeNans(alpha * RNTN.adaGrad(wordToVecDerivativeMap.get(key).get, derivativeHistory))
+    for((key, vecDerivative) <- wordToVecDerivativeMap) {
+      val derivativeHistory = wordToVecDerivativeHistoryMap.getOrElseUpdate(key, DenseVector.zeros(inSize))
+      wordToVecMap.get(key).get -= RNTN.removeNans(alpha * RNTN.adaGrad(vecDerivative, derivativeHistory))
     }
   }
 
   def fit(labeledTrees: Vector[(Tree, Int)]): Unit = {
     clearCache()
     for((t, i) <- labeledTrees) backwardPropagateError(forwardPropagateTree(t), label(i))
-    backwardPropagateRegularizationError()
+    backwardPropagateRegularizationError(1)
     if (useAdaGrad) applyGradientWithAdaGrad()
     else applyGradientWithoutAdaGrad()
+  }
+
+  def stochasticGradientDescent(labeledTrees: Vector[(Tree, Int)]): Unit = {
+    for((t, i) <- labeledTrees) {
+      clearCache()
+      backwardPropagateError(forwardPropagateTree(t), label(i))
+      backwardPropagateRegularizationError(1 / labeledTrees.length)
+      if (useAdaGrad) applyGradientWithAdaGrad()
+      else applyGradientWithoutAdaGrad()
+    }
   }
 }

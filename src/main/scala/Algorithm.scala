@@ -9,6 +9,8 @@ import org.apache.spark.SparkContext
 
 import grizzled.slf4j.Logger
 
+import scala.util.Random
+
 case class AlgorithmParams(
   inSize: Int,
   outSize: Int,
@@ -30,7 +32,7 @@ class Algorithm(val ap: AlgorithmParams)
       rntn.fit(data.labeledTrees)
     }*/
 
-    val rntns = data.labeledTrees.mapPartitions(labeledTrees => {
+    /*val rntns = data.labeledTrees.mapPartitions(labeledTrees => {
       val rntn = new RNTN(ap.inSize, ap.outSize, ap.alpha, ap.regularizationCoeff, ap.useAdaGrad)
       val labeledTreesVector = labeledTrees.toVector
       for(i <- 0 to ap.steps) {
@@ -40,7 +42,20 @@ class Algorithm(val ap: AlgorithmParams)
       Iterator((rntn, 1))
     })
     val (rntn, _) = rntns.reduce({case ((a, qa), (b, qb)) => (RNTN.weightedMean(a, b, qa, qb), qa + qb)})
+    logger.info(s"Merged: ${rntn.forwardPropagateError(data.labeledTrees.collect.toVector)}")*/
+
+    val rntns = data.labeledTrees.mapPartitions(labeledTrees => {
+      val rntn = new RNTN(ap.inSize, ap.outSize, ap.alpha, ap.regularizationCoeff, ap.useAdaGrad)
+      val labeledTreesVector = labeledTrees.toVector
+      for(i <- 0 to ap.steps) {
+        logger.info(s"Iteration $i: ${rntn.forwardPropagateError(labeledTreesVector)}")
+        rntn.stochasticGradientDescent(Random.shuffle(labeledTreesVector))
+      }
+      Iterator((rntn, 1))
+    })
+    val (rntn, _) = rntns.reduce({case ((a, qa), (b, qb)) => (RNTN.weightedMean(a, b, qa, qb), qa + qb)})
     logger.info(s"Merged: ${rntn.forwardPropagateError(data.labeledTrees.collect.toVector)}")
+
     Model(rntn)
   }
 
