@@ -3,6 +3,7 @@ package org.template.rntn
 import io.prediction.controller.PPreparator
 
 import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
 
 class Preparator
   extends PPreparator[TrainingData, PreparedData] {
@@ -20,10 +21,12 @@ class Preparator
       (tree, labeledPhrase.sentiment)
     })
 
-    PreparedData(labeledTrees.toVector)
+    //PreparedData(labeledTrees.toVector)
+    PreparedData(sc.parallelize(labeledTrees))
   }
 }
 
 case class PreparedData(
-  labeledTrees : Vector[(Tree, Int)]
+  //labeledTrees : Vector[(Tree, Int)]
+  labeledTrees: RDD[(Tree, Int)]
 ) extends Serializable
