@@ -23,16 +23,36 @@ class Algorithm(val ap: AlgorithmParams)
   @transient lazy val logger = Logger[this.type]
 
   def train(sc: SparkContext, data: PreparedData): Model = {
-    val rntns = data.labeledTrees.mapPartitions(labeledTrees => {
+    val rntn = new RNTN(ap.inSize, ap.outSize, ap.alpha, ap.regularizationCoeff)
+    var lastError = 0.0
+    var currentError = 100000000.0
+    var i = 0
+    do {
+      //for(i <- 0 to ap.steps) {
+      logger.info(s"Iteration $i: ${rntn.forwardPropagateError(data.labeledTrees)}")
+      i += 1
+      rntn.fit(data.labeledTrees)
+      lastError = currentError
+      currentError = rntn.forwardPropagateError(data.labeledTrees)
+    } while (currentError < lastError)
+
+    /*val rntns = data.labeledTrees.mapPartitions(labeledTrees => {
       val rntn = new RNTN(ap.inSize, ap.outSize, ap.alpha, ap.regularizationCoeff)
       val labeledTreesVector = labeledTrees.toVector
-      for(i <- 0 to ap.steps) {
+      var lastError = 0.0
+      var currentError = 100000000.0
+      var i = 0
+      do {
+      //for(i <- 0 to ap.steps) {
         logger.info(s"Iteration $i: ${rntn.forwardPropagateError(labeledTreesVector)}")
+        i += 1
         rntn.fit(labeledTreesVector)
-      }
+        lastError = currentError
+        currentError = rntn.forwardPropagateError(labeledTreesVector)
+      } while (currentError < lastError)
       Iterator((rntn, 1))
     })
-    val (rntn, _) = rntns.reduce({case ((a, qa), (b, qb)) => (RNTN.weightedMean(a, b, qa, qb), qa + qb)})
+    val (rntn, _) = rntns.reduce({case ((a, qa), (b, qb)) => (RNTN.weightedMean(a, b, qa, qb), qa + qb)})*/
     Model(rntn)
   }
 

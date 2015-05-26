@@ -33,10 +33,10 @@ class Preparator
       (tree, labeledPhrase.sentiment)
     })
 
-    PreparedData(sc.parallelize(labeledTrees))
+    PreparedData(labeledTrees.toVector)
   }
 }
 
 case class PreparedData(
-  labeledTrees : RDD[(Tree, Int)]
+  labeledTrees : Vector[(Tree, Int)]
 ) extends Serializable
