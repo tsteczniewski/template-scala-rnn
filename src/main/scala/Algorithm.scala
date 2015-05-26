@@ -24,17 +24,10 @@ class Algorithm(val ap: AlgorithmParams)
 
   def train(sc: SparkContext, data: PreparedData): Model = {
     val rntn = new RNTN(ap.inSize, ap.outSize, ap.alpha, ap.regularizationCoeff)
-    var lastError = 0.0
-    var currentError = 100000000.0
-    var i = 0
-    do {
-      //for(i <- 0 to ap.steps) {
+    for(i <- 0 until ap.steps) {
       logger.info(s"Iteration $i: ${rntn.forwardPropagateError(data.labeledTrees)}")
-      i += 1
       rntn.fit(data.labeledTrees)
-      lastError = currentError
-      currentError = rntn.forwardPropagateError(data.labeledTrees)
-    } while (currentError < lastError)
+    }
 
     /*val rntns = data.labeledTrees.mapPartitions(labeledTrees => {
       val rntn = new RNTN(ap.inSize, ap.outSize, ap.alpha, ap.regularizationCoeff)
@@ -57,16 +50,11 @@ class Algorithm(val ap: AlgorithmParams)
   }
 
   def predict(model: Model, query: Query): PredictedResult = {
-    val stream = getClass.getResource("/en-parser-chunking.bin").openStream()
-    val parserModel = new ParserModel(stream)
-    stream.close()
-    // create buffer
-    val buffer = new StringBuffer(20 * query.content.length)
-    // create parser
-    val parser = ParserFactory.create(parserModel)
-    ParserTool.parseLine(query.content, parser, 1)(0).show(buffer)
-    val pennTreeBankFormattedPhrase = buffer.toString
-    val tree = Tree.fromPennTreeBankFormat(pennTreeBankFormattedPhrase)
+    // parser
+    val parser = Parser(query.content.length)
+    val pennFormatted = parser.pennFormatted(query.content)
+    val tree = Tree.fromPennTreeBankFormat(pennFormatted)
+    println(tree)
     val forwardPropagatedTree = model.rntn.forwardPropagateTree(tree)
     val judgement = model.rntn.forwardPropagateJudgment(forwardPropagatedTree)
     PredictedResult(RNTN.maxClass(judgement))

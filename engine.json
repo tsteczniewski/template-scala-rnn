@@ -4,7 +4,7 @@
   "engineFactory": "org.template.rntn.Engine",
   "datasource": {
     "params" : {
-      "appName": "DAll"
+      "appName": "D30"
     }
   },
   "algorithms": [{
@@ -14,7 +14,7 @@
         "outSize": 5,
         "alpha": 0.001,
         "regularizationCoeff": 0.001,
-        "steps": 40
+        "steps": 1000
       }
     }
   ]
