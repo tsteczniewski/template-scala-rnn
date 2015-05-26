@@ -4,7 +4,7 @@
   "engineFactory": "org.template.rntn.Engine",
   "datasource": {
     "params" : {
-      "appName": "D1000"
+      "appName": "D10000"
     }
   },
   "algorithms": [{

@@ -15,11 +15,19 @@ class Preparator
     val maxLength = labeledPhrases.maxBy(_.phrase.length).phrase.length
     // parser
     val parser = Parser(maxLength)
-    val labeledTrees = labeledPhrases.map(labeledPhrase => {
-      val pennFormatted = parser.pennFormatted(labeledPhrase.phrase)
-      val tree = Tree.fromPennTreeBankFormat(pennFormatted)
-      (tree, labeledPhrase.sentiment)
+    val maybeLabeledTrees: Array[Option[(Tree, Int)]] = labeledPhrases.map(labeledPhrase => {
+      var tree: Tree = null
+      try {
+        val pennFormatted = parser.pennFormatted(labeledPhrase.phrase)
+        tree = Tree.fromPennTreeBankFormat(pennFormatted)
+      } catch {
+        case e => println("!!!!! " + labeledPhrase.phrase)
+      }
+      if (tree != null) Some((tree, labeledPhrase.sentiment))
+      else None
     })
+
+    val labeledTrees = maybeLabeledTrees.filter(_ != None).map(_.get)
 
     //PreparedData(labeledTrees.toVector)
     PreparedData(sc.parallelize(labeledTrees))
