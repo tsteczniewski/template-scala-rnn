@@ -3,7 +3,7 @@ package org.template.rntn
 import breeze.linalg.{argmax, sum, DenseVector, DenseMatrix}
 import breeze.stats.distributions.Uniform
 import scala.collection.mutable.Map
-import scala.math.{exp, log}
+import scala.math.{exp, log, sqrt}
 
 object RNTN {
   val randomDistribution = new Uniform(-1, 1)
@@ -18,9 +18,9 @@ object RNTN {
   def regularization(m: DenseMatrix[Double]) = sum(m.map(x => x * x))
 
   def weightedMean(a: RNTN, b: RNTN, aq: Double, bq: Double): RNTN = {
-    assert(a.inSize == b.inSize && a.outSize == b.outSize && a.alpha == b.alpha && a.regularizationCoeff == b.regularizationCoeff)
+    assert(a.inSize == b.inSize && a.outSize == b.outSize && a.alpha == b.alpha && a.regularizationCoeff == b.regularizationCoeff && a.useAdaGrad == b.useAdaGrad)
     val sum = aq + bq
-    val rntn = new RNTN(a.inSize, a.outSize, a.alpha, a.regularizationCoeff)
+    val rntn = new RNTN(a.inSize, a.outSize, a.alpha, a.regularizationCoeff, a.useAdaGrad)
     // judge
     rntn.judge = ((aq * a.judge) + (bq * b.judge)) / sum
     // combinator
@@ -45,16 +45,27 @@ object RNTN {
   def maxClass(v: DenseVector[Double]): Int = argmax(v)
 
   def removeNans(m: DenseMatrix[Double]): DenseMatrix[Double] = m.map(x => if (x.isNaN) 0 else x)
-
   def removeNans(v: DenseVector[Double]): DenseVector[Double] = v.map(x => if (x.isNaN) 0 else x)
+
+  val fudgeFactor = 1e-6
+  def adaGrad(g: DenseMatrix[Double], gh: DenseMatrix[Double]): DenseMatrix[Double] = {
+    gh += removeNans(g :* g)
+    g :/ gh.map(x => fudgeFactor + sqrt(x))
+  }
+  def adaGrad(g: DenseVector[Double], gh: DenseVector[Double]): DenseVector[Double] = {
+    gh += removeNans(g :* g)
+    g :/ gh.map(x => fudgeFactor + sqrt(x))
+  }
 }
 
 case class RNTN (
   inSize: Int,
   outSize: Int,
   alpha: Double,
-  regularizationCoeff: Double
+  regularizationCoeff: Double,
+  useAdaGrad: Boolean
 ) extends Serializable {
+
   var judge = RNTN.randomMatrix(outSize, inSize + 1)
   var labelToCombinatorMap = Map[(String, Int), DenseMatrix[Double]]()
   var wordToVecMap = Map[(String, String), DenseVector[Double]]()
@@ -62,6 +73,10 @@ case class RNTN (
   @transient var judgeDerivative: DenseMatrix[Double] = null
   @transient var labelToCombinatorDerivativeMap: Map[(String, Int), DenseMatrix[Double]] = null
   @transient var wordToVecDerivativeMap: Map[(String, String), DenseVector[Double]] = null
+
+  @transient var judgeDerivativeHistory = RNTN.randomMatrix(outSize, inSize + 1)
+  @transient var labelToCombinatorDerivativeHistoryMap = Map[(String, Int), DenseMatrix[Double]]()
+  @transient var wordToVecDerivativeHistoryMap = Map[(String, String), DenseVector[Double]]()
 
   def clearCache() = {
     judgeDerivative = DenseMatrix.zeros(judge.rows, judge.cols)
@@ -163,12 +178,30 @@ case class RNTN (
     for((word, vec) <- wordToVecMap) wordToVecDerivativeMap.get(word).get += coeff * vec
   }
 
+  def applyGradientWithoutAdaGrad() = {
+    judge -= RNTN.removeNans(alpha * judgeDerivative)
+    for((key, combinator) <- labelToCombinatorMap) combinator -= RNTN.removeNans(alpha * labelToCombinatorDerivativeMap.get(key).get)
+    for((key, vec) <- wordToVecMap) vec -= RNTN.removeNans(alpha * wordToVecDerivativeMap.get(key).get)
+  }
+
+  def applyGradientWithAdaGrad() = {
+    judge -= RNTN.removeNans(alpha * RNTN.adaGrad(judgeDerivative, judgeDerivativeHistory))
+    for((key, combinator) <- labelToCombinatorMap) {
+      val derivativeHistory = labelToCombinatorDerivativeHistoryMap.getOrElseUpdate(key, DenseMatrix.zeros(combinator.rows, combinator.cols))
+      combinator -= RNTN.removeNans(alpha * RNTN.adaGrad(labelToCombinatorDerivativeMap.get(key).get, derivativeHistory))
+    }
+
+    for((key, vec) <- wordToVecMap) {
+      val derivativeHistory = wordToVecDerivativeMap.getOrElseUpdate(key, DenseVector.zeros(inSize))
+      vec -= RNTN.removeNans(alpha * RNTN.adaGrad(wordToVecDerivativeMap.get(key).get, derivativeHistory))
+    }
+  }
+
   def fit(labeledTrees: Vector[(Tree, Int)]): Unit = {
     clearCache()
     for((t, i) <- labeledTrees) backwardPropagateError(forwardPropagateTree(t), label(i))
     backwardPropagateRegularizationError()
-    judge -= RNTN.removeNans(alpha * judgeDerivative)
-    for((key, combinator) <- labelToCombinatorMap) combinator -= RNTN.removeNans(alpha * labelToCombinatorDerivativeMap.get(key).get)
-    for((word, vec) <- wordToVecMap) vec -= RNTN.removeNans(alpha * wordToVecDerivativeMap.get(word).get)
+    if (useAdaGrad) applyGradientWithAdaGrad()
+    else applyGradientWithoutAdaGrad()
   }
 }

@@ -87,7 +87,7 @@ class RNNTest extends org.scalatest.FunSuite {
 
     for (i <- a.indices) {
       //println(s"test fold $i")
-      val rnn = RNTN(1, 0, 0, 0)
+      val rnn = RNTN(1, 0, 0, 0, false)
       rnn.clearCache()
       rnn.labelToCombinatorMap.put(("LABEL", 2), DenseMatrix((combinator_1(i), combinator_2(i), combinator_3(i))))
       val l = Leaf("l", "LABEL")
@@ -149,7 +149,7 @@ class RNNTest extends org.scalatest.FunSuite {
              - (1.0 - g(i)) * (RNTN.sigmoidDerivative(b(i) * RNTN.sigmoid(a(i)) + c(i))) / (RNTN.sigmoid(b(i) * RNTN.sigmoid(a(i)) + c(i)) - 1))
 
     for(i <- a.indices) {
-      val rnn = RNTN(1, 2, 0, 0)
+      val rnn = RNTN(1, 2, 0, 0, false)
       rnn.clearCache()
       rnn.judge = DenseMatrix((judge_1(i), judge_2(i)), (judge_3(i), judge_4(i)))
       val l = Leaf("l", "LABEL")
@@ -168,7 +168,7 @@ class RNNTest extends org.scalatest.FunSuite {
   test("test fit A") {
     //println("test fit A")
 
-    val rnn = RNTN(10, 3, 1, 0.001)
+    val rnn = RNTN(10, 3, 1, 0.001, false)
     val l = Leaf("word", "LABEL")
     val ps = Vector((l, 0))
     var previousError = infinity
@@ -190,7 +190,7 @@ class RNNTest extends org.scalatest.FunSuite {
   test("test fit B") {
     //println("test fit B")
 
-    val rnn = RNTN(10, 3, 1, 0.001)
+    val rnn = RNTN(10, 3, 1, 0.001, true)
     val l = Leaf("word", "LABEL")
     val r = Leaf("other", "BABEL")
     val t2 = Node(List(Leaf("a", "GABEL"), Leaf("b", "REBEL")), "LABEL")
@@ -217,7 +217,7 @@ class RNNTest extends org.scalatest.FunSuite {
   test("test fit C") {
     //println("test fit C")
 
-    val rnn = RNTN(10, 3, 1, 0.001)
+    val rnn = RNTN(10, 3, 1, 0.001, true)
     val l = Leaf("word", "LABEL")
     val r = Leaf("other", "BABEL")
     val t2 = Node(List(Leaf("a", "GABEL"), Leaf("b", "REBEL")), "LABEL")

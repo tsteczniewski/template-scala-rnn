@@ -14,6 +14,7 @@ case class AlgorithmParams(
   outSize: Int,
   alpha: Double,
   regularizationCoeff: Double,
+  useAdaGrad: Boolean,
   steps: Int
 ) extends Params
 
@@ -23,7 +24,7 @@ class Algorithm(val ap: AlgorithmParams)
   @transient lazy val logger = Logger[this.type]
 
   def train(sc: SparkContext, data: PreparedData): Model = {
-    val rntn = new RNTN(ap.inSize, ap.outSize, ap.alpha, ap.regularizationCoeff)
+    val rntn = new RNTN(ap.inSize, ap.outSize, ap.alpha, ap.regularizationCoeff, ap.useAdaGrad)
     for(i <- 0 until ap.steps) {
       logger.info(s"Iteration $i: ${rntn.forwardPropagateError(data.labeledTrees)}")
       rntn.fit(data.labeledTrees)
