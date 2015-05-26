@@ -59,9 +59,9 @@ case class RNTN (
   var labelToCombinatorMap = Map[(String, Int), DenseMatrix[Double]]()
   var wordToVecMap = Map[(String, String), DenseVector[Double]]()
 
-  var judgeDerivative: DenseMatrix[Double] = null
-  var labelToCombinatorDerivativeMap: Map[(String, Int), DenseMatrix[Double]] = null
-  var wordToVecDerivativeMap: Map[(String, String), DenseVector[Double]] = null
+  @transient var judgeDerivative: DenseMatrix[Double] = null
+  @transient var labelToCombinatorDerivativeMap: Map[(String, Int), DenseMatrix[Double]] = null
+  @transient var wordToVecDerivativeMap: Map[(String, String), DenseVector[Double]] = null
 
   def clearCache() = {
     judgeDerivative = DenseMatrix.zeros(judge.rows, judge.cols)
