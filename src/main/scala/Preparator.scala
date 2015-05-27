@@ -4,7 +4,6 @@ import grizzled.slf4j.Logger
 import io.prediction.controller.PPreparator
 
 import org.apache.spark.SparkContext
-import org.apache.spark.rdd.RDD
 
 class Preparator
   extends PPreparator[TrainingData, PreparedData] {
@@ -33,11 +32,9 @@ class Preparator
     val labeledTrees = maybeLabeledTrees.filter(_ != None).map(_.get)
 
     PreparedData(labeledTrees.toVector)
-    //PreparedData(sc.parallelize(labeledTrees))
   }
 }
 
 case class PreparedData(
   labeledTrees : Vector[(Tree, Int)]
-  //labeledTrees: RDD[(Tree, Int)]
 ) extends Serializable

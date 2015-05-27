@@ -3,6 +3,7 @@ package org.template.rntn
 import breeze.linalg.{argmax, sum, DenseVector, DenseMatrix}
 import breeze.stats.distributions.Uniform
 import scala.collection.mutable.Map
+import scala.collection.mutable.HashMap
 import scala.math.{exp, log, sqrt}
 
 object RNTN {
@@ -67,16 +68,16 @@ case class RNTN (
 ) extends Serializable {
 
   var judge = RNTN.randomMatrix(outSize, inSize + 1)
-  var labelToCombinatorMap = Map[(String, Int), DenseMatrix[Double]]()
-  var wordToVecMap = Map[(String, String), DenseVector[Double]]()
+  var labelToCombinatorMap = HashMap[(String, Int), DenseMatrix[Double]]()
+  var wordToVecMap = HashMap[(String, String), DenseVector[Double]]()
 
   @transient var judgeDerivative: DenseMatrix[Double] = null
   @transient var labelToCombinatorDerivativeMap: Map[(String, Int), DenseMatrix[Double]] = null
   @transient var wordToVecDerivativeMap: Map[(String, String), DenseVector[Double]] = null
 
   @transient var judgeDerivativeHistory = RNTN.randomMatrix(outSize, inSize + 1)
-  @transient var labelToCombinatorDerivativeHistoryMap = Map[(String, Int), DenseMatrix[Double]]()
-  @transient var wordToVecDerivativeHistoryMap = Map[(String, String), DenseVector[Double]]()
+  @transient var labelToCombinatorDerivativeHistoryMap = HashMap[(String, Int), DenseMatrix[Double]]()
+  @transient var wordToVecDerivativeHistoryMap = HashMap[(String, String), DenseVector[Double]]()
 
   def clearCache() = {
     judgeDerivative = DenseMatrix.zeros(judge.rows, judge.cols)
