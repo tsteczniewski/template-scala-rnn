@@ -1,4 +1,4 @@
-package org.template.rntn
+package org.template.rnn
 
 import breeze.linalg.{argmax, sum, DenseVector, DenseMatrix}
 import breeze.stats.distributions.Uniform
@@ -6,7 +6,7 @@ import scala.collection.mutable.Map
 import scala.collection.mutable.HashMap
 import scala.math.{exp, log, sqrt}
 
-object RNTN {
+object RNN {
   val randomDistribution = new Uniform(-1, 1)
   def randomMatrix(rows: Int, cols: Int) = DenseMatrix.rand(rows, cols, randomDistribution)
   def randomVector(rows: Int) = DenseVector.rand(rows, randomDistribution)
@@ -18,29 +18,29 @@ object RNTN {
 
   def regularization(m: DenseMatrix[Double]) = sum(m.map(x => x * x))
 
-  def weightedMean(a: RNTN, b: RNTN, aq: Double, bq: Double): RNTN = {
+  def weightedMean(a: RNN, b: RNN, aq: Double, bq: Double): RNN = {
     assert(a.inSize == b.inSize && a.outSize == b.outSize && a.alpha == b.alpha && a.regularizationCoeff == b.regularizationCoeff && a.useAdaGrad == b.useAdaGrad)
     val sum = aq + bq
-    val rntn = new RNTN(a.inSize, a.outSize, a.alpha, a.regularizationCoeff, a.useAdaGrad)
+    val rnn = new RNN(a.inSize, a.outSize, a.alpha, a.regularizationCoeff, a.useAdaGrad)
     // judge
-    rntn.judge = ((aq * a.judge) + (bq * b.judge)) / sum
+    rnn.judge = ((aq * a.judge) + (bq * b.judge)) / sum
     // combinator
     if (true) {
       val aKeySet = a.labelToCombinatorMap.keySet
       val bKeySet = b.labelToCombinatorMap.keySet
-      for (key <- aKeySet.diff(bKeySet)) rntn.labelToCombinatorMap.put(key, (aq * a.labelToCombinatorMap(key)) / sum)
-      for (key <- bKeySet.diff(bKeySet)) rntn.labelToCombinatorMap.put(key, (bq * b.labelToCombinatorMap(key)) / sum)
-      for (key <- aKeySet.intersect(bKeySet)) rntn.labelToCombinatorMap.put(key, ((aq * a.labelToCombinatorMap(key)) + (bq * b.labelToCombinatorMap(key))) / sum)
+      for (key <- aKeySet.diff(bKeySet)) rnn.labelToCombinatorMap.put(key, (aq * a.labelToCombinatorMap(key)) / sum)
+      for (key <- bKeySet.diff(bKeySet)) rnn.labelToCombinatorMap.put(key, (bq * b.labelToCombinatorMap(key)) / sum)
+      for (key <- aKeySet.intersect(bKeySet)) rnn.labelToCombinatorMap.put(key, ((aq * a.labelToCombinatorMap(key)) + (bq * b.labelToCombinatorMap(key))) / sum)
     }
     // word vec
     if (true) {
       val aKeySet = a.wordToVecMap.keySet
       val bKeySet = b.wordToVecMap.keySet
-      for (key <- aKeySet.diff(bKeySet)) rntn.wordToVecMap.put(key, (aq * a.wordToVecMap(key)) / sum)
-      for (key <- bKeySet.diff(bKeySet)) rntn.wordToVecMap.put(key, (bq * b.wordToVecMap(key)) / sum)
-      for (key <- aKeySet.intersect(bKeySet)) rntn.wordToVecMap.put(key, (aq * a.wordToVecMap(key) + bq * b.wordToVecMap(key)) / sum)
+      for (key <- aKeySet.diff(bKeySet)) rnn.wordToVecMap.put(key, (aq * a.wordToVecMap(key)) / sum)
+      for (key <- bKeySet.diff(bKeySet)) rnn.wordToVecMap.put(key, (bq * b.wordToVecMap(key)) / sum)
+      for (key <- aKeySet.intersect(bKeySet)) rnn.wordToVecMap.put(key, (aq * a.wordToVecMap(key) + bq * b.wordToVecMap(key)) / sum)
     }
-    rntn
+    rnn
   }
 
   def maxClass(v: DenseVector[Double]): Int = argmax(v)
@@ -59,7 +59,7 @@ object RNTN {
   }
 }
 
-case class RNTN (
+case class RNN (
   inSize: Int,
   outSize: Int,
   alpha: Double,
@@ -67,22 +67,22 @@ case class RNTN (
   useAdaGrad: Boolean
 ) extends Serializable {
 
-  var judge = RNTN.randomMatrix(outSize, inSize + 1)
+  var judge = RNN.randomMatrix(outSize, inSize + 1)
   var labelToCombinatorMap = HashMap[(String, Int), DenseMatrix[Double]]()
   var wordToVecMap = HashMap[(String, String), DenseVector[Double]]()
 
-  @transient var judgeDerivative: DenseMatrix[Double] = null
-  @transient var labelToCombinatorDerivativeMap: Map[(String, Int), DenseMatrix[Double]] = null
-  @transient var wordToVecDerivativeMap: Map[(String, String), DenseVector[Double]] = null
+  @transient var judgeGradient: DenseMatrix[Double] = null
+  @transient var labelToCombinatorGradientMap: Map[(String, Int), DenseMatrix[Double]] = null
+  @transient var wordToVecGradientMap: Map[(String, String), DenseVector[Double]] = null
 
-  @transient var judgeDerivativeHistory = RNTN.randomMatrix(outSize, inSize + 1)
-  @transient var labelToCombinatorDerivativeHistoryMap = HashMap[(String, Int), DenseMatrix[Double]]()
-  @transient var wordToVecDerivativeHistoryMap = HashMap[(String, String), DenseVector[Double]]()
+  @transient var judgeGradientHistory = RNN.randomMatrix(outSize, inSize + 1)
+  @transient var labelToCombinatorGradientHistoryMap = HashMap[(String, Int), DenseMatrix[Double]]()
+  @transient var wordToVecGradientHistoryMap = HashMap[(String, String), DenseVector[Double]]()
 
   def clearCache() = {
-    judgeDerivative = DenseMatrix.zeros(judge.rows, judge.cols)
-    labelToCombinatorDerivativeMap = Map[(String, Int), DenseMatrix[Double]]()
-    wordToVecDerivativeMap = Map[(String, String), DenseVector[Double]]()
+    judgeGradient = DenseMatrix.zeros(judge.rows, judge.cols)
+    labelToCombinatorGradientMap = Map[(String, Int), DenseMatrix[Double]]()
+    wordToVecGradientMap = Map[(String, String), DenseVector[Double]]()
   }
 
   def label(i: Int) = {
@@ -97,12 +97,12 @@ case class RNTN (
       val vsChildren = for(fpChild <- fpChildren) yield fpChild.value
       val joined: DenseVector[Double] = DenseVector.vertcat(vsChildren:_*)
       val biased: DenseVector[Double] = DenseVector.vertcat(joined, DenseVector.ones(1))
-      val combinator = labelToCombinatorMap.getOrElseUpdate((label, children.length), RNTN.randomMatrix(inSize, inSize * children.length + 1))
+      val combinator = labelToCombinatorMap.getOrElseUpdate((label, children.length), RNN.randomMatrix(inSize, inSize * children.length + 1))
       val transformed: DenseVector[Double] = combinator * biased
-      ForwardPropagatedNode(fpChildren, label, transformed.map(RNTN.sigmoid), transformed.map(RNTN.sigmoidDerivative))
+      ForwardPropagatedNode(fpChildren, label, transformed.map(RNN.sigmoid), transformed.map(RNN.sigmoidDerivative))
     case Leaf(word, label) =>
-      val vec = wordToVecMap.getOrElseUpdate((word, label), RNTN.randomVector(inSize))
-      ForwardPropagatedLeaf(word, label, vec.map(RNTN.sigmoid), vec.map(RNTN.sigmoidDerivative))
+      val vec = wordToVecMap.getOrElseUpdate((word, label), RNN.randomVector(inSize))
+      ForwardPropagatedLeaf(word, label, vec.map(RNN.sigmoid), vec.map(RNN.sigmoidDerivative))
   }
 
   def backwardPropagateTree(tree: ForwardPropagatedTree, y: DenseVector[Double]): Unit = tree match {
@@ -112,20 +112,20 @@ case class RNTN (
       val joined: DenseVector[Double] = DenseVector.vertcat(vsChildren:_*)
       val biased: DenseVector[Double] = DenseVector.vertcat(joined, DenseVector.ones(1))
       val combinator = labelToCombinatorMap.get((label, children.length)).get
-      val combinatorDerivative = labelToCombinatorDerivativeMap.getOrElseUpdate((label, children.length), DenseMatrix.zeros(inSize, inSize * children.length + 1))
-      combinatorDerivative += z * biased.t
-      val biasedDerivative: DenseVector[Double] = combinator.t * z
-      for(i <- children.indices) backwardPropagateTree(children(i), biasedDerivative(i * inSize to (i + 1) * inSize - 1))
+      val combinatorGradient = labelToCombinatorGradientMap.getOrElseUpdate((label, children.length), DenseMatrix.zeros(inSize, inSize * children.length + 1))
+      combinatorGradient += z * biased.t
+      val biasedGradient: DenseVector[Double] = combinator.t * z
+      for(i <- children.indices) backwardPropagateTree(children(i), biasedGradient(i * inSize to (i + 1) * inSize - 1))
     case ForwardPropagatedLeaf(word, label, _, d) =>
-      val vecDerivative = wordToVecDerivativeMap.getOrElseUpdate((word, label), DenseVector.zeros(inSize))
-      vecDerivative += y :* d
+      val vecGradient = wordToVecGradientMap.getOrElseUpdate((word, label), DenseVector.zeros(inSize))
+      vecGradient += y :* d
   }
 
   def forwardPropagateJudgment(tree: ForwardPropagatedTree) = tree match {
     case ForwardPropagatedTree(_, v, _) =>
       val biased = DenseVector.vertcat(v, DenseVector.ones[Double](1))
       val judged: DenseVector[Double] = judge * biased
-      val activated = judged.map(RNTN.sigmoid)
+      val activated = judged.map(RNN.sigmoid)
       activated
   }
 
@@ -133,11 +133,11 @@ case class RNTN (
     case ForwardPropagatedTree(_, v, _) =>
       val biased = DenseVector.vertcat(v, DenseVector.ones[Double](1))
       val judged: DenseVector[Double] = judge * biased
-      val derivative: DenseVector[Double] = judged.map(RNTN.sigmoidDerivative)
-      val z = y :* derivative
-      judgeDerivative += z * biased.t
-      val biasedDerivative: DenseVector[Double] = judge.t * z
-      backwardPropagateTree(tree, biasedDerivative(0 to inSize - 1))
+      val gradient: DenseVector[Double] = judged.map(RNN.sigmoidDerivative)
+      val z = y :* gradient
+      judgeGradient += z * biased.t
+      val biasedGradient: DenseVector[Double] = judge.t * z
+      backwardPropagateTree(tree, biasedGradient(0 to inSize - 1))
   }
 
   def forwardPropagateError(tree: ForwardPropagatedTree, expected: DenseVector[Double]): Double = {
@@ -152,11 +152,11 @@ case class RNTN (
   def backwardPropagateError(tree: ForwardPropagatedTree, expected: DenseVector[Double]): Unit = {
     val oneMinusExpected = DenseVector.ones[Double](outSize) - expected
     val actual = forwardPropagateJudgment(tree)
-    val logActualDerivative = actual.map(RNTN.logDerivative)
+    val logActualGradient = actual.map(RNN.logDerivative)
     val oneMinusActual = DenseVector.ones[Double](outSize) - actual
-    val logOneMinusActualDerivative = - oneMinusActual.map(RNTN.logDerivative)
-    val judgementDerivative = - ((expected :* logActualDerivative) + (oneMinusExpected :* logOneMinusActualDerivative))
-    backwardPropagateJudgement(tree, judgementDerivative)
+    val logOneMinusActualGradient = - oneMinusActual.map(RNN.logDerivative)
+    val judgementGradient = - ((expected :* logActualGradient) + (oneMinusExpected :* logOneMinusActualGradient))
+    backwardPropagateJudgement(tree, judgementGradient)
   }
 
   def forwardPropagateError(labeledTrees: Vector[(Tree, Int)]): Double =
@@ -166,36 +166,36 @@ case class RNTN (
     })
 
   def forwardPropagateRegularizationError(influence: Double): Double = {
-    var regularization = RNTN.regularization(judge)
-    for(combinator <- labelToCombinatorMap.values) regularization += RNTN.regularization(combinator)
-    for(vec <- wordToVecMap.values) regularization += RNTN.regularization(vec.asDenseMatrix)
+    var regularization = RNN.regularization(judge)
+    for(combinator <- labelToCombinatorMap.values) regularization += RNN.regularization(combinator)
+    for(vec <- wordToVecMap.values) regularization += RNN.regularization(vec.asDenseMatrix)
     regularizationCoeff * influence * regularization
   }
 
   // calculates gradient only on touched matrices
   def backwardPropagateRegularizationError(influence: Double): Unit = {
     val coeff = regularizationCoeff * influence * 2.0
-    judgeDerivative += coeff * judge
-    for((key, combinatorDerivative) <- labelToCombinatorDerivativeMap) combinatorDerivative += coeff * labelToCombinatorMap.get(key).get
-    for((key, vecDerivative) <- wordToVecDerivativeMap) vecDerivative += coeff * wordToVecMap.get(key).get
+    judgeGradient += coeff * judge
+    for((key, combinatorGradient) <- labelToCombinatorGradientMap) combinatorGradient += coeff * labelToCombinatorMap.get(key).get
+    for((key, vecGradient) <- wordToVecGradientMap) vecGradient += coeff * wordToVecMap.get(key).get
   }
 
   def applyGradientWithoutAdaGrad() = {
-    judge -= RNTN.removeNans(alpha * judgeDerivative)
-    for((key, combinatorDerivative) <- labelToCombinatorDerivativeMap) labelToCombinatorMap.get(key).get -= RNTN.removeNans(alpha * combinatorDerivative)
-    for((key, vecDerivative) <- wordToVecDerivativeMap) wordToVecMap.get(key).get -= RNTN.removeNans(alpha * vecDerivative)
+    judge -= RNN.removeNans(alpha * judgeGradient)
+    for((key, combinatorGradient) <- labelToCombinatorGradientMap) labelToCombinatorMap.get(key).get -= RNN.removeNans(alpha * combinatorGradient)
+    for((key, vecGradient) <- wordToVecGradientMap) wordToVecMap.get(key).get -= RNN.removeNans(alpha * vecGradient)
   }
 
   def applyGradientWithAdaGrad() = {
-    judge -= RNTN.removeNans(alpha * RNTN.adaGrad(judgeDerivative, judgeDerivativeHistory))
-    for((key, combinatorDerivative) <- labelToCombinatorDerivativeMap) {
-      val derivativeHistory = labelToCombinatorDerivativeHistoryMap.getOrElseUpdate(key, DenseMatrix.zeros(combinatorDerivative.rows, combinatorDerivative.cols))
-      labelToCombinatorMap.get(key).get -= RNTN.removeNans(alpha * RNTN.adaGrad(combinatorDerivative, derivativeHistory))
+    judge -= RNN.removeNans(alpha * RNN.adaGrad(judgeGradient, judgeGradientHistory))
+    for((key, combinatorGradient) <- labelToCombinatorGradientMap) {
+      val gradientHistory = labelToCombinatorGradientHistoryMap.getOrElseUpdate(key, DenseMatrix.zeros(combinatorGradient.rows, combinatorGradient.cols))
+      labelToCombinatorMap.get(key).get -= RNN.removeNans(alpha * RNN.adaGrad(combinatorGradient, gradientHistory))
     }
 
-    for((key, vecDerivative) <- wordToVecDerivativeMap) {
-      val derivativeHistory = wordToVecDerivativeHistoryMap.getOrElseUpdate(key, DenseVector.zeros(inSize))
-      wordToVecMap.get(key).get -= RNTN.removeNans(alpha * RNTN.adaGrad(vecDerivative, derivativeHistory))
+    for((key, vecGradient) <- wordToVecGradientMap) {
+      val gradientHistory = wordToVecGradientHistoryMap.getOrElseUpdate(key, DenseVector.zeros(inSize))
+      wordToVecMap.get(key).get -= RNN.removeNans(alpha * RNN.adaGrad(vecGradient, gradientHistory))
     }
   }
 

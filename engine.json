@@ -1,14 +1,14 @@
 {
   "id": "default",
   "description": "Default settings",
-  "engineFactory": "org.template.rntn.Engine",
+  "engineFactory": "org.template.rnn.Engine",
   "datasource": {
     "params" : {
-      "appName": "D10000"
+      "appName": "AppName"
     }
   },
   "algorithms": [{
-      "name": "rntn",
+      "name": "rnn",
       "params": {
         "inSize": 10,
         "outSize": 5,

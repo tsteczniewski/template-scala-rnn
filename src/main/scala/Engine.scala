@@ -1,4 +1,4 @@
-package org.template.rntn
+package org.template.rnn
 
 import io.prediction.controller.IEngineFactory
 import io.prediction.controller.Engine
@@ -12,7 +12,7 @@ object Engine extends IEngineFactory {
     new Engine(
       classOf[DataSource],
       classOf[Preparator],
-      Map("rntn" -> classOf[Algorithm]),
+      Map("rnn" -> classOf[Algorithm]),
       classOf[Serving])
   }
 }

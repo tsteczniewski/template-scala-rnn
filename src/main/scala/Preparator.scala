@@ -1,4 +1,4 @@
-package org.template.rntn
+package org.template.rnn
 
 import grizzled.slf4j.Logger
 import io.prediction.controller.PPreparator

@@ -1,4 +1,4 @@
-package org.template.rntn
+package org.template.rnn
 
 import scala.collection.mutable.Stack
 

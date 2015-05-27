@@ -1,4 +1,4 @@
-package org.template.rntn
+package org.template.rnn
 
 import io.prediction.controller._
 import io.prediction.data.store.PEventStore

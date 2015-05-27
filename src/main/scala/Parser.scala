@@ -1,4 +1,4 @@
-package org.template.rntn
+package org.template.rnn
 
 import opennlp.tools.cmdline.parser.ParserTool
 import opennlp.tools.parser.{ParserFactory, ParserModel}
