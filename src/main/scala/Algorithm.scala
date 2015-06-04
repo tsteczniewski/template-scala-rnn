@@ -7,14 +7,12 @@ import org.apache.spark.SparkContext
 
 import grizzled.slf4j.Logger
 
-import scala.util.Random
 
 case class AlgorithmParams(
   inSize: Int,
   outSize: Int,
   alpha: Double,
   regularizationCoeff: Double,
-  useAdaGrad: Boolean,
   steps: Int
 ) extends Params
 
@@ -24,16 +22,15 @@ class Algorithm(val ap: AlgorithmParams)
   @transient lazy val logger = Logger[this.type]
 
   def train(sc: SparkContext, data: PreparedData): Model = {
-    val rnn = new RNN(ap.inSize, ap.outSize, ap.alpha, ap.regularizationCoeff, ap.useAdaGrad)
+    val rnn = new RNN(ap.inSize, ap.outSize, ap.alpha, ap.regularizationCoeff, data.labeledTrees)
     for(i <- 0 until ap.steps) {
       logger.info(s"Iteration $i: ${rnn.forwardPropagateError(data.labeledTrees)}")
-      rnn.stochasticGradientDescent(Random.shuffle(data.labeledTrees))
+      rnn.fit()
     }
     Model(rnn)
   }
 
   def predict(model: Model, query: Query): PredictedResult = {
-    // parser
     val parser = Parser(query.content.length)
     val pennFormatted = parser.pennFormatted(query.content)
     val tree = Tree.fromPennTreeBankFormat(pennFormatted)

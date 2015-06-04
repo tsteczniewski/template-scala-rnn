@@ -66,6 +66,16 @@ object Tree {
     val Closed(tree) = stack.top
     tree
   }
+
+  def nodeTypes(tree: Tree): Set[(String, Int)] = tree match {
+    case Node(children, label) => children.map(nodeTypes(_)).fold(Set())((a, b) => a union b) + ((label, children.length))
+    case Leaf(word, label) => Set()
+  }
+
+  def leafTypes(tree: Tree): Set[(String, String)] = tree match {
+    case Node(children, label) => children.map(leafTypes(_)).fold(Set())((a, b) => a union b)
+    case Leaf(word, label) => Set((word, label))
+  }
 }
 
 

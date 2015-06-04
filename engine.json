@@ -14,7 +14,6 @@
         "outSize": 5,
         "alpha": 0.95,
         "regularizationCoeff": 0.001,
-        "useAdaGrad": true,
         "steps": 1000
       }
     }
